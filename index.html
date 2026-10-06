@@ -227,6 +227,7 @@
     const STATE = {
       step: 'home', // 'home', 'name', 'theme', 'scenario', 'time', 'results'
       sheetsWebhookUrl: localStorage.getItem('bobti_sheets_url') || '',
+      githubToken: localStorage.getItem('bobti_gh_token') || '',
       user: {
         name: '',
         themes: [],
@@ -237,6 +238,13 @@
     };
 
     function loadSavedState() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tokenParam = urlParams.get('gh_token');
+      if (tokenParam) {
+        localStorage.setItem('bobti_gh_token', tokenParam);
+        STATE.githubToken = tokenParam;
+      }
+
       const saved = localStorage.getItem('bobti_single_state');
       if (saved) {
         try {
@@ -245,6 +253,7 @@
         } catch (e) {}
       }
       STATE.sheetsWebhookUrl = localStorage.getItem('bobti_sheets_url') || STATE.sheetsWebhookUrl || '';
+      STATE.githubToken = localStorage.getItem('bobti_gh_token') || STATE.githubToken || '';
     }
 
     function saveState() {
@@ -252,15 +261,20 @@
       if (STATE.sheetsWebhookUrl) {
         localStorage.setItem('bobti_sheets_url', STATE.sheetsWebhookUrl);
       }
+      if (STATE.githubToken) {
+        localStorage.setItem('bobti_gh_token', STATE.githubToken);
+      }
     }
 
     function resetTest() {
       if (confirm('새로운 검사를 시작하시겠습니까? 기존 입력 내용이 초기화됩니다.')) {
         const urlBackup = STATE.sheetsWebhookUrl;
+        const ghBackup = STATE.githubToken;
         STATE.step = 'home';
         STATE.user = { name: '', themes: [], answers: {}, timePref: '30~60분' };
         STATE.currentScenarioIndex = 0;
         STATE.sheetsWebhookUrl = urlBackup;
+        STATE.githubToken = ghBackup;
         localStorage.removeItem('bobti_single_state');
         saveState();
         render();
@@ -308,7 +322,7 @@
             <div style="font-size: 13px; color: #cbd5e1; line-height: 1.5;">
               • 약 <strong>2~3분</strong>이면 검사가 완료됩니다.<br>
               • 나의 플레이 성향(경쟁, 전략, 몰입도, 공격성)을 알아봅니다.<br>
-              • 호스트가 소장한 <strong>41개 명작 보드게임</strong> 중 내 취향에 딱 맞는 <strong>Opening → Main → Next Step</strong> 코스를 찾아드립니다!
+              • 호스트가 소장한 <strong>41개 명작 보드게임</strong> 중 내 취향에 딱 맞는 <strong>Opening → Main → Next Step → 최종 목표</strong> 코스를 찾아드립니다!
             </div>
           </div>
 
@@ -325,28 +339,29 @@
             </button>
           ` : ''}
 
-          <!-- Google Sheets 연동 설정 (접이식) -->
+          <!-- 호스트 전용 GitHub 자동 저장 연동 설정 (접이식) -->
           <details style="margin-top: 24px; font-size: 13px; color: var(--text-muted); border-top: 1px dashed var(--border); padding-top: 16px;">
-            <summary style="cursor: pointer; font-weight: 600; color: #cbd5e1;">⚙️ Google Sheets 자동 저장 설정 (호스트 전용)</summary>
+            <summary style="cursor: pointer; font-weight: 600; color: #cbd5e1;">⚙️ GitHub Issues 무로그인 자동 저장 설정 (호스트 전용)</summary>
             <div style="margin-top: 10px;">
               <p style="font-size: 12px; line-height: 1.4; margin-bottom: 8px;">
-                Google Apps Script Web App URL을 입력하면 검사 완료 시 시트에 결과가 실시간 자동 기록됩니다.
+                손님이 로그인 없이 결과 확인만 해도 호스트의 GitHub Issues에 글이 실시간 자동 등록되도록 연동합니다.
               </p>
-              <input type="text" id="sheets-url-input" class="input-field" placeholder="https://script.google.com/macros/s/.../exec" value="${STATE.sheetsWebhookUrl}" style="font-size: 12px; padding: 10px;">
-              <button class="btn btn-secondary" style="font-size: 13px; padding: 8px;" onclick="saveSheetsUrl()">URL 저장하기</button>
+              <input type="password" id="gh-token-input" class="input-field" placeholder="github_pat_... 또는 gho_..." value="${STATE.githubToken}" style="font-size: 12px; padding: 10px;">
+              <button class="btn btn-secondary" style="font-size: 13px; padding: 8px;" onclick="saveGithubToken()">GitHub 토큰 저장하기</button>
             </div>
           </details>
         </div>
       `;
     }
 
-    function saveSheetsUrl() {
-      const val = document.getElementById('sheets-url-input').value.trim();
-      STATE.sheetsWebhookUrl = val;
-      localStorage.setItem('bobti_sheets_url', val);
-      alert('Google Sheets Webhook URL이 저장되었습니다!');
+    function saveGithubToken() {
+      const val = document.getElementById('gh-token-input').value.trim();
+      STATE.githubToken = val;
+      localStorage.setItem('bobti_gh_token', val);
+      alert('GitHub 토큰이 브라우저에 저장되었습니다! 이제 손님이 제출 시 Issues에 백그라운드로 자동 저장됩니다.');
       render();
     }
+
 
     // 2. 이름 입력 전용 페이지
     function renderNamePage(root) {
@@ -522,21 +537,24 @@
       render();
     }
 
-    // 6. 결과 화면 (1인 단독 결과 & 3단계 추천)
+    // 6. 결과 화면 (1인 단독 결과 & 4단계 추천)
     function renderResults(root) {
       const matchResult = matchGamesForIndividual(STATE.user);
       const u = matchResult.user;
       const rec = matchResult.recommendations;
 
-      // Google Sheets 실시간 자동 전송 시도
-      setTimeout(() => sendSingleResultToSheets(matchResult), 100);
+      // GitHub Issues & Google Sheets 실시간 백그라운드 자동 전송 시도
+      setTimeout(() => {
+        autoSaveToGithubIssues(matchResult);
+        sendSingleResultToSheets(matchResult);
+      }, 100);
 
       root.innerHTML = `
         <div class="card">
           <h1>✨ ${STATE.user.name} 님의 BOBTI</h1>
           <p class="subtitle">나의 성향 분석 & Game Night 맞춤 추천 코스</p>
 
-          <div id="sheets-status" style="font-size: 12px; color: #34d399; text-align: center; margin-bottom: 12px;"></div>
+          <div id="save-status" style="font-size: 13px; font-weight: 600; color: #34d399; text-align: center; margin-bottom: 12px;"></div>
 
           <!-- 내 BOBTI 유형 카드 -->
           <div style="background: rgba(99, 102, 241, 0.15); border: 1px solid var(--primary-light); border-radius: 16px; padding: 20px; margin-bottom: 20px; text-align: center;">
@@ -555,14 +573,14 @@
             </div>
           </div>
 
-          <!-- GitHub에 바로 저장하기 버튼 -->
-          <button class="btn btn-primary" onclick='openGithubIssue(${JSON.stringify(matchResult).replace(/'/g, "\\'")})' style="margin-bottom: 12px; background: #24292f; color: #ffffff; border: 1px solid #4b5563;">
-            🐙 GitHub에 답변 저장하기 (Issues에 영구 기록)
+          <!-- 카카오톡 공유 버튼 -->
+          <button class="btn btn-primary" onclick='copySingleSummary(${JSON.stringify(matchResult).replace(/'/g, "\\'")})' style="margin-bottom: 12px; background: #fee500; color: #191600;">
+            💬 호스트 전달용 카톡 요약 복사하기
           </button>
 
-          <!-- 카카오톡 공유 버튼 -->
-          <button class="btn btn-primary" onclick='copySingleSummary(${JSON.stringify(matchResult).replace(/'/g, "\\'")})' style="margin-bottom: 24px; background: #fee500; color: #191600;">
-            💬 호스트 전달용 카톡 요약 복사하기
+          <!-- 보조 수동 GitHub 저장 버튼 -->
+          <button class="btn btn-secondary" onclick='openGithubIssue(${JSON.stringify(matchResult).replace(/'/g, "\\'")})' style="margin-bottom: 24px; font-size: 13px; padding: 10px;">
+            🐙 GitHub Issues 수동 등록 (직접 글쓰기 창 열기)
           </button>
 
           <!-- 4단계 추천 게임 -->
@@ -628,6 +646,57 @@
       `;
     }
 
+    function autoSaveToGithubIssues(matchResult) {
+      if (!STATE.githubToken) return;
+      const u = matchResult.user;
+      const rec = matchResult.recommendations;
+
+      const title = `[BOBTI 결과] ${STATE.user.name} - ${u.code} (${u.typeInfo.title})`;
+      const body = `### 🎲 BOBTI 성향 검사 응답 결과
+
+| 항목 | 내용 |
+| :--- | :--- |
+| **참가자 이름** | **${STATE.user.name}** |
+| **BOBTI 유형** | **${u.typeInfo.icon} ${u.code} (${u.typeInfo.title})** |
+| **선호 테마** | ${STATE.user.themes.join(', ') || '없음'} |
+| **희망 플레이 타임** | ${STATE.user.timePref} |
+
+---
+
+### 🎯 4단계 맞춤 게임 추천 코스
+
+#### 🟢 1. Opening Game (워밍업)
+${rec.opening.map(g => `- **${g.name}** (${g.matchScore}점 일치 / 난이도 ${g.weight} / ${g.time})`).join('\n')}
+
+#### 🔵 2. Main Game (오늘 밤의 메인)
+${rec.main.map(g => `- **${g.name}** (${g.matchScore}점 일치 / 난이도 ${g.weight} / ${g.time})`).join('\n')}
+
+#### 🟣 3. Next Step (성장 발판)
+${rec.next.map(g => `- **${g.name}** (${g.matchScore}점 일치 / 난이도 ${g.weight} / ${g.time})`).join('\n')}
+
+#### 👑 4. 주인장의 최종 목표 (Masterpiece)
+${rec.masterpiece.map(g => `- **${g.name}** (난이도 ${g.weight} / ${g.time}) - *${g.summary}*`).join('\n')}
+
+> *이 응답은 손님 무로그인 상태에서 BOBTI 앱을 통해 GitHub에 자동 저장되었습니다.*`;
+
+      fetch('https://api.github.com/repos/yyh9734/bobti/issues', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${STATE.githubToken}`,
+          'Accept': 'application/vnd.github+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ title, body })
+      }).then(res => {
+        if (res.ok) {
+          const el = document.getElementById('save-status');
+          if (el) el.innerHTML = '🐙 호스트 GitHub 저장소에 자동 저장 완료!';
+        }
+      }).catch(err => {
+        console.warn('Auto save error:', err);
+      });
+    }
+
     function sendSingleResultToSheets(matchResult) {
       if (!STATE.sheetsWebhookUrl) return;
       const u = matchResult.user;
@@ -651,8 +720,8 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       }).then(() => {
-        const el = document.getElementById('sheets-status');
-        if (el) el.innerHTML = '📊 Google Sheets에 실시간 기록 완료!';
+        const el = document.getElementById('save-status');
+        if (el && !el.innerHTML) el.innerHTML = '📊 Google Sheets에 실시간 기록 완료!';
       }).catch(e => {
         console.warn('Sheets send error:', e);
       });
