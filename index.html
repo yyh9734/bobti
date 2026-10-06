@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>BOBTI (보비티아이) - 우리 부부 보드게임 성향 검사</title>
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-light: #6366f1;
+      --secondary: #ec4899;
+      --accent: #f59e0b;
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #334155;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Segoe UI", Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 16px;
+    }
+    #app-container {
+      width: 100%;
+      max-width: 520px;
+      margin: 0 auto;
+      padding-bottom: 40px;
+    }
+    .card {
+      background-color: var(--card-bg);
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+    }
+    h1 {
+      font-size: 24px;
+      font-weight: 800;
+      text-align: center;
+      background: linear-gradient(135deg, #a5b4fc, #f472b6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      font-size: 14px;
+      color: var(--text-muted);
+      text-align: center;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(99, 102, 241, 0.2);
+      color: #a5b4fc;
+      margin-bottom: 8px;
+    }
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 14px 20px;
+      border-radius: 14px;
+      border: none;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s ease;
+      margin-top: 12px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+    }
+    .btn-primary:active {
+      transform: scale(0.98);
+      opacity: 0.9;
+    }
+    .btn-secondary {
+      background: var(--border);
+      color: var(--text);
+    }
+    .input-field {
+      width: 100%;
+      padding: 14px 16px;
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: white;
+      font-size: 15px;
+      margin-bottom: 16px;
+      outline: none;
+    }
+    .input-field:focus {
+      border-color: var(--primary-light);
+    }
+    .chip-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .chip {
+      padding: 12px;
+      border-radius: 12px;
+      background: #0f172a;
+      border: 1px solid var(--border);
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.15s ease;
+    }
+    .chip.selected {
+      background: rgba(99, 102, 241, 0.25);
+      border-color: var(--primary-light);
+      color: #c7d2fe;
+      font-weight: 600;
+    }
+    .question-box {
+      margin-bottom: 24px;
+    }
+    .question-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #e2e8f0;
+    }
+    .question-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+    .option-btn {
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: 12px;
+      background: #0f172a;
+      border: 1px solid var(--border);
+      color: #cbd5e1;
+      font-size: 14px;
+      text-align: left;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+      line-height: 1.4;
+    }
+    .option-btn.selected {
+      background: rgba(99, 102, 241, 0.2);
+      border-color: var(--primary-light);
+      color: #ffffff;
+      font-weight: 600;
+    }
+    .progress-bar-container {
+      width: 100%;
+      height: 6px;
+      background: var(--border);
+      border-radius: 10px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+      transition: width 0.3s ease;
+    }
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+    .game-card {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 12px;
+      position: relative;
+    }
+    .game-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .game-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .game-summary {
+      font-size: 13px;
+      color: #cbd5e1;
+      line-height: 1.45;
+    }
+    .match-tag {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+      padding: 2px 8px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .tab-container {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 10px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+    }
+    .tab-btn.active {
+      color: var(--primary-light);
+      border-bottom: 2px solid var(--primary-light);
+    }
+  </style>
+</head>
+<body>
+  <div id="app-container">
+    <!-- 화면이 자바스크립트로 렌더링됩니다 -->
+  </div>
+
+  <script src="data.js"></script>
+  <script src="algorithm.js"></script>
+  <script>
+    // 상태 관리 (localStorage 연동)
+    const STATE = {
+      step: 'home', // 'home', 'survey1', 'survey2', 'waiting', 'results'
+      currentUser: 1, // 1: 배우자 A, 2: 배우자 B
+      user1: { name: '', played: [], themes: [], answers: {}, timePref: '30~60분' },
+      user2: { name: '', played: [], themes: [], answers: {}, timePref: '30~60분' },
+      currentQIndex: 0
+    };
+
+    // 로컬 스토리지에서 이전 응답 복원
+    function loadSavedState() {
+      const saved = localStorage.getItem('bobti_state');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          Object.assign(STATE, parsed);
+        } catch (e) {}
+      }
+    }
+
+    function saveState() {
+      localStorage.setItem('bobti_state', JSON.stringify(STATE));
+    }
+
+    function render() {
+      const root = document.getElementById('app-container');
+      root.innerHTML = '';
+
+      if (STATE.step === 'home') {
+        renderHome(root);
+      } else if (STATE.step === 'survey') {
+        renderSurvey(root);
+      } else if (STATE.step === 'waiting') {
+        renderWaiting(root);
+      } else if (STATE.step === 'results') {
+        renderResults(root);
+      }
+    }
+
+    function renderHome(root) {
+      root.innerHTML = `
+        <div class="card">
+          <div style="text-align: center; font-size: 40px; margin-bottom: 10px;">🎲✨</div>
+          <h1>BOBTI 보비티아이</h1>
+          <p class="subtitle">우리 부부만을 위한 맞춤형 보드게임 성향 분석 & Game Night 추천</p>
+          
+          <div style="background: rgba(99, 102, 241, 0.1); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 20px;">
+            <div style="font-weight: 700; color: #a5b4fc; margin-bottom: 6px; font-size: 15px;">💡 진행 방법</div>
+            <div style="font-size: 13px; color: #cbd5e1; line-height: 1.5;">
+              1. 부부 두 분이 각자 <strong>3분간 8가지 질문</strong>에 응답합니다.<br>
+              2. 두 분의 성향(경쟁, 계획, 몰입도, 공격성)을 분석합니다.<br>
+              3. 호스트가 보유한 <strong>41개 명작 보드게임</strong> 중 오늘 밤 딱 맞는 <strong>Opening → 본 게임 → 심화 게임</strong> 코스를 완성합니다!
+            </div>
+          </div>
+
+          <button class="btn btn-primary" onclick="startSurvey(1)">
+            👤 1번째 분 검사 시작하기
+          </button>
+          ${STATE.user1.name ? `
+            <button class="btn btn-secondary" onclick="startSurvey(2)" style="margin-top: 10px;">
+              👤 2번째 분 (${STATE.user2.name || '배우자'}) 검사 시작하기
+            </button>
+          ` : ''}
+          ${STATE.user1.name && STATE.user2.name ? `
+            <button class="btn btn-primary" onclick="showResults()" style="background: linear-gradient(135deg, #10b981, #059669); margin-top: 12px;">
+              🎉 두 분의 결과 확인하기
+            </button>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    function startSurvey(userNum) {
+      STATE.currentUser = userNum;
+      STATE.step = 'survey';
+      STATE.currentQIndex = 0;
+      saveState();
+      render();
+    }
+
+    function renderSurvey(root) {
+      const user = STATE.currentUser === 1 ? STATE.user1 : STATE.user2;
+      const totalSteps = 2 + SCENARIO_QUESTIONS.length; // 이름/테마(0) + 질문들(1~8) + 플레이타임(9)
+      const currentProgress = ((STATE.currentQIndex + 1) / totalSteps) * 100;
+
+      let contentHtml = '';
+
+      // 스텝 0: 기본 정보 & 선호 테마
+      if (STATE.currentQIndex === 0) {
+        contentHtml = `
+          <div class="card">
+            <span class="badge">검사 대상: ${STATE.currentUser === 1 ? '첫 번째 참가자' : '두 번째 참가자'}</span>
+            <div class="question-title">성함이나 별명을 입력해주세요</div>
+            <input type="text" class="input-field" placeholder="예: 민수, 지영" value="${user.name}" id="user-name-input">
+
+            <div class="question-title" style="margin-top: 10px;">선호하는 테마 (다중 선택)</div>
+            <div class="question-desc">끌리는 분위기나 관심 있는 소재를 골라주세요</div>
+            <div class="chip-grid">
+              ${[
+                { id: '히어로', name: '🦸 히어로 / 마블' },
+                { id: 'SF', name: '🚀 우주 / SF / 탐험' },
+                { id: '판타지', name: '🐉 판타지 / 모험' },
+                { id: '경제', name: '🏭 경제 / 경영 / 건설' },
+                { id: '아시아', name: '🎌 동양 / 일본 / 역사' },
+                { id: '서부', name: '🤠 서부 / 범죄 / 카지노' },
+                { id: '음식', name: '🍜 음식 / 요리 / 동물' },
+                { id: '일상', name: '🎲 가벼운 파티 / 유머' }
+              ].map(t => `
+                <div class="chip ${user.themes.includes(t.id) ? 'selected' : ''}" onclick="toggleTheme('${t.id}')">
+                  ${t.name}
+                </div>
+              `).join('')}
+            </div>
+
+            <button class="btn btn-primary" onclick="nextSurveyStep(0)">다음으로 (질문 시작)</button>
+          </div>
+        `;
+      } 
+      // 스텝 1~8: 시나리오 질문
+      else if (STATE.currentQIndex >= 1 && STATE.currentQIndex <= SCENARIO_QUESTIONS.length) {
+        const qIndex = STATE.currentQIndex - 1;
+        const q = SCENARIO_QUESTIONS[qIndex];
+        const selectedScore = user.answers[q.id];
+
+        contentHtml = `
+          <div class="card">
+            <div class="progress-bar-container">
+              <div class="progress-fill" style="width: ${currentProgress}%;"></div>
+            </div>
+            <span class="badge">${q.situation} (Q${STATE.currentQIndex}/${SCENARIO_QUESTIONS.length})</span>
+            <div class="question-title" style="font-size: 18px; margin-top: 6px;">${q.question}</div>
+            <div class="question-desc">편하게 떠오르는 첫 느낌으로 선택해주세요.</div>
+
+            <div style="margin-top: 16px;">
+              ${q.options.map((opt, idx) => `
+                <button class="option-btn ${selectedScore === opt.score ? 'selected' : ''}" onclick="selectAnswer('${q.id}', ${opt.score})">
+                  ${opt.text}
+                </button>
+              `).join('')}
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 14px;">
+              <button class="btn btn-secondary" style="flex: 1;" onclick="prevSurveyStep()">이전</button>
+              <button class="btn btn-primary" style="flex: 2;" onclick="nextSurveyStep(${STATE.currentQIndex})">다음</button>
+            </div>
+          </div>
+        `;
+      }
+      // 스텝 9: 플레이타임 & 경험 여부
+      else {
+        contentHtml = `
+          <div class="card">
+            <span class="badge">마지막 단계!</span>
+            <div class="question-title">선호하는 한 게임당 플레이 타임</div>
+            <div class="question-desc">어느 정도 호흡이 편안하신가요?</div>
+            <div style="margin-bottom: 20px;">
+              ${['10~20분 (초간단 파티)', '20~40분 (적당한 집중)', '40~60분 (알찬 전략)', '60분 이상도 집중 가능!'].map(time => `
+                <button class="option-btn ${user.timePref === time ? 'selected' : ''}" onclick="setTimePref('${time}')">
+                  ⏱️ ${time}
+                </button>
+              `).join('')}
+            </div>
+
+            <button class="btn btn-primary" onclick="finishUserSurvey()">검사 완료하기 🎉</button>
+          </div>
+        `;
+      }
+
+      root.innerHTML = contentHtml;
+    }
+
+    function toggleTheme(themeId) {
+      const user = STATE.currentUser === 1 ? STATE.user1 : STATE.user2;
+      if (user.themes.includes(themeId)) {
+        user.themes = user.themes.filter(t => t !== themeId);
+      } else {
+        user.themes.push(themeId);
+      }
+      saveState();
+      render();
+    }
+
+    function selectAnswer(qId, score) {
+      const user = STATE.currentUser === 1 ? STATE.user1 : STATE.user2;
+      user.answers[qId] = score;
+      saveState();
+      render();
+    }
+
+    function setTimePref(time) {
+      const user = STATE.currentUser === 1 ? STATE.user1 : STATE.user2;
+      user.timePref = time;
+      saveState();
+      render();
+    }
+
+    function nextSurveyStep(currentStep) {
+      const user = STATE.currentUser === 1 ? STATE.user1 : STATE.user2;
+      if (currentStep === 0) {
+        const nameVal = document.getElementById('user-name-input').value.trim();
+        user.name = nameVal || (STATE.currentUser === 1 ? '참가자 1' : '참가자 2');
+      }
+      STATE.currentQIndex++;
+      saveState();
+      render();
+    }
+
+    function prevSurveyStep() {
+      if (STATE.currentQIndex > 0) {
+        STATE.currentQIndex--;
+        saveState();
+        render();
+      }
+    }
+
+    function finishUserSurvey() {
+      if (STATE.currentUser === 1) {
+        STATE.step = 'waiting';
+      } else {
+        STATE.step = 'results';
+      }
+      saveState();
+      render();
+    }
+
+    function renderWaiting(root) {
+      root.innerHTML = `
+        <div class="card" style="text-align: center;">
+          <div style="font-size: 40px; margin-bottom: 12px;">✅</div>
+          <h1>${STATE.user1.name} 님의 검사 완료!</h1>
+          <p class="subtitle">이제 배우자 분의 성향을 알아볼 차례입니다.</p>
+
+          <div class="status-badge" style="justify-content: center; margin-bottom: 24px;">
+            <span>1번째 분 응답 완료됨</span>
+          </div>
+
+          <button class="btn btn-primary" onclick="startSurvey(2)">
+            👤 2번째 분 (${STATE.user2.name || '배우자'}) 시작하기
+          </button>
+          <button class="btn btn-secondary" onclick="STATE.step='home'; render();" style="margin-top: 10px;">
+            홈으로 돌아가기
+          </button>
+        </div>
+      `;
+    }
+
+    function showResults() {
+      STATE.step = 'results';
+      saveState();
+      render();
+    }
+
+    function renderResults(root) {
+      const matchResult = matchGamesForCouple(STATE.user1, STATE.user2);
+      const u1 = matchResult.user1;
+      const u2 = matchResult.user2;
+      const couple = matchResult.couple;
+      const rec = matchResult.recommendations;
+
+      root.innerHTML = `
+        <div class="card">
+          <h1>✨ BOBTI 분석 결과</h1>
+          <p class="subtitle">${STATE.user1.name} & ${STATE.user2.name} 커플 맞춤형 Game Night 코스</p>
+
+          <!-- 개인별 BOBTI -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+            <div style="background: #0f172a; padding: 12px; border-radius: 12px; border: 1px solid var(--border);">
+              <div style="font-size: 12px; color: var(--text-muted);">${STATE.user1.name}</div>
+              <div style="font-size: 16px; font-weight: 800; color: #a5b4fc; margin: 4px 0;">${u1.typeInfo.icon} ${u1.code}</div>
+              <div style="font-size: 12px; color: #cbd5e1; font-weight: 600;">${u1.typeInfo.title}</div>
+            </div>
+            <div style="background: #0f172a; padding: 12px; border-radius: 12px; border: 1px solid var(--border);">
+              <div style="font-size: 12px; color: var(--text-muted);">${STATE.user2.name}</div>
+              <div style="font-size: 16px; font-weight: 800; color: #f472b6; margin: 4px 0;">${u2.typeInfo.icon} ${u2.code}</div>
+              <div style="font-size: 12px; color: #cbd5e1; font-weight: 600;">${u2.typeInfo.title}</div>
+            </div>
+          </div>
+
+          <!-- 커플 종합 프로필 -->
+          <div style="background: rgba(99, 102, 241, 0.15); border: 1px solid var(--primary-light); border-radius: 14px; padding: 16px; margin-bottom: 24px;">
+            <div style="font-size: 12px; color: #c7d2fe; font-weight: 700;">💑 부부 종합 플레이 성향</div>
+            <div style="font-size: 20px; font-weight: 800; color: #ffffff; margin: 6px 0;">
+              ${couple.typeInfo.icon} ${couple.coupleCode} : ${couple.typeInfo.title}
+            </div>
+            <div style="font-size: 13px; color: #cbd5e1; line-height: 1.45;">
+              ${couple.typeInfo.desc}
+            </div>
+            ${couple.conflicts.length > 0 ? `
+              <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); font-size: 12px; color: #fbbf24;">
+                ${couple.conflicts.map(c => `⚠️ ${c.text}`).join('<br>')}
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- 3단계 추천 코스 -->
+          <h2 style="font-size: 18px; font-weight: 800; margin-bottom: 12px; color: #e2e8f0;">
+            🎯 Game Night 3단계 코스 추천 (각 단계 택 1)
+          </h2>
+
+          <!-- 1단계: Opening Game -->
+          <div style="margin-bottom: 20px;">
+            <div style="font-size: 14px; font-weight: 700; color: #34d399; margin-bottom: 8px;">
+              🟢 1. Opening Game (가벼운 아이스브레이킹)
+            </div>
+            ${rec.opening.map(g => renderGameCard(g)).join('')}
+          </div>
+
+          <!-- 2단계: Main Game -->
+          <div style="margin-bottom: 20px;">
+            <div style="font-size: 14px; font-weight: 700; color: #60a5fa; margin-bottom: 8px;">
+              🔵 2. Main Game (오늘 밤의 메인 요리)
+            </div>
+            ${rec.main.map(g => renderGameCard(g)).join('')}
+          </div>
+
+          <!-- 3단계: Next Step -->
+          <div style="margin-bottom: 20px;">
+            <div style="font-size: 14px; font-weight: 700; color: #f472b6; margin-bottom: 8px;">
+              🟣 3. Next Step (다음 모임 또는 심화 도전)
+            </div>
+            ${rec.next.map(g => renderGameCard(g)).join('')}
+          </div>
+
+          <button class="btn btn-secondary" onclick="STATE.step='home'; render();">
+            🔄 처음으로 돌아가기
+          </button>
+        </div>
+      `;
+    }
+
+    function renderGameCard(game) {
+      return `
+        <div class="game-card">
+          <div class="game-title">
+            <span>${game.name}</span>
+            <span class="match-tag">${game.matchScore}점 일치</span>
+          </div>
+          <div class="game-meta">
+            난이도 ${game.weight} / ${game.time} / 평점 ${game.rating || '-'} / 주인장 평점 ${game.hostRating || '-'}
+          </div>
+          <div class="game-summary">${game.summary}</div>
+        </div>
+      `;
+    }
+
+    // 초기화 실행
+    loadSavedState();
+    render();
+  </script>
+</body>
+</html>
