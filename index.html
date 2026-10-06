@@ -555,6 +555,11 @@
             </div>
           </div>
 
+          <!-- GitHub에 바로 저장하기 버튼 -->
+          <button class="btn btn-primary" onclick='openGithubIssue(${JSON.stringify(matchResult).replace(/'/g, "\\'")})' style="margin-bottom: 12px; background: #24292f; color: #ffffff; border: 1px solid #4b5563;">
+            🐙 GitHub에 답변 저장하기 (Issues에 영구 기록)
+          </button>
+
           <!-- 카카오톡 공유 버튼 -->
           <button class="btn btn-primary" onclick='copySingleSummary(${JSON.stringify(matchResult).replace(/'/g, "\\'")})' style="margin-bottom: 24px; background: #fee500; color: #191600;">
             💬 호스트 전달용 카톡 요약 복사하기
@@ -663,9 +668,46 @@
       });
     }
 
+    function openGithubIssue(matchResult) {
+      const u = matchResult.user;
+      const rec = matchResult.recommendations;
+
+      const title = encodeURIComponent(`[BOBTI 결과] ${STATE.user.name} - ${u.code} (${u.typeInfo.title})`);
+      
+      const bodyText = `### 🎲 BOBTI 성향 검사 응답 결과
+
+| 항목 | 내용 |
+| :--- | :--- |
+| **참가자 이름** | **${STATE.user.name}** |
+| **BOBTI 유형** | **${u.typeInfo.icon} ${u.code} (${u.typeInfo.title})** |
+| **선호 테마** | ${STATE.user.themes.join(', ') || '없음'} |
+| **희망 플레이 타임** | ${STATE.user.timePref} |
+
+---
+
+### 🎯 3단계 맞춤 게임 추천
+
+#### 🟢 1. Opening Game (워밍업)
+${rec.opening.map(g => `- **${g.name}** (${g.matchScore}점 일치 / 난이도 ${g.weight} / ${g.time})`).join('\n')}
+
+#### 🔵 2. Main Game (오늘 밤의 메인)
+${rec.main.map(g => `- **${g.name}** (${g.matchScore}점 일치 / 난이도 ${g.weight} / ${g.time})`).join('\n')}
+
+#### 🟣 3. Next Step (심화 도전)
+${rec.next.map(g => `- **${g.name}** (${g.matchScore}점 일치 / 난이도 ${g.weight} / ${g.time})`).join('\n')}
+
+> *이 응답은 BOBTI 웹 애플리케이션에서 자동 생성되었습니다.*`;
+
+      const body = encodeURIComponent(bodyText);
+      const url = `https://github.com/yyh9734/bobti/issues/new?title=${title}&body=${body}`;
+      
+      window.open(url, '_blank');
+    }
+
     // 초기 로딩
     loadSavedState();
     render();
   </script>
 </body>
 </html>
+
