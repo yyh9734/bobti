@@ -209,21 +209,27 @@ function matchGamesForIndividual(userData) {
     };
   });
 
-  // 1. Opening Game
+  // 1. Opening Game (웨이트 <= 1.5, 시간 <= 30분)
   const openingCandidates = scoredGames
     .filter(g => g.weight <= 1.5 && g.timeMinutes <= 30)
     .sort((a, b) => b.matchScore - a.matchScore)
     .slice(0, 4);
 
-  // 2. Main Game
+  // 2. Main Game (웨이트 1.5 ~ 2.6, 시간 20~60분)
   const mainCandidates = scoredGames
     .filter(g => g.weight >= 1.5 && g.weight <= 2.6 && g.timeMinutes <= 60)
     .sort((a, b) => b.matchScore - a.matchScore)
     .slice(0, 4);
 
-  // 3. Next Step
+  // 3. Next Step (다음 모임의 성장 발판: 웨이트 2.4 ~ 3.3)
   const nextCandidates = scoredGames
-    .filter(g => g.weight >= 2.4 && g.weight <= 3.9)
+    .filter(g => g.weight >= 2.4 && g.weight <= 3.3)
+    .sort((a, b) => b.matchScore - a.matchScore)
+    .slice(0, 4);
+
+  // 4. 주인장의 최종 목표 (Masterpiece: 웨이트 3.5 이상 고난도 명작)
+  const masterpieceCandidates = scoredGames
+    .filter(g => g.weight >= 3.5)
     .sort((a, b) => b.matchScore - a.matchScore)
     .slice(0, 4);
 
@@ -233,7 +239,8 @@ function matchGamesForIndividual(userData) {
     recommendations: {
       opening: openingCandidates,
       main: mainCandidates,
-      next: nextCandidates
+      next: nextCandidates,
+      masterpiece: masterpieceCandidates
     }
   };
 }
