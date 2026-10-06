@@ -22,38 +22,37 @@ function doPost(e) {
     if (sheet.getLastRow() === 0) {
       sheet.appendRow([
         "일시",
-        "참가자 1",
-        "성향 1",
-        "참가자 2",
-        "성향 2",
-        "커플 성향",
+        "참가자 이름",
+        "BOBTI 유형",
+        "유형 설명",
         "선호 테마",
+        "선호 시간",
         "추천 Opening",
         "추천 Main",
         "추천 Next Step"
       ]);
-      sheet.getRange(1, 1, 1, 10).setFontWeight("bold").setBackground("#e0e7ff");
+      sheet.getRange(1, 1, 1, 9).setFontWeight("bold").setBackground("#e0e7ff");
     }
 
     var data = JSON.parse(e.postData.contents);
 
     var timestamp = Utilities.formatDate(new Date(), "Asia/Seoul", "yyyy-MM-dd HH:mm:ss");
-    var user1Str = (data.user1Name || "") + " (" + (data.user1Code || "") + " " + (data.user1Title || "") + ")";
-    var user2Str = (data.user2Name || "") + " (" + (data.user2Code || "") + " " + (data.user2Title || "") + ")";
-    var coupleStr = (data.coupleCode || "") + " " + (data.coupleTitle || "");
+    var userName = data.userName || "";
+    var userCode = data.userCode || "";
+    var userTitle = data.userTitle || "";
     var themes = (data.themes || []).join(", ");
+    var timePref = data.timePref || "";
     var opening = (data.opening || []).join(", ");
     var main = (data.main || []).join(", ");
     var next = (data.next || []).join(", ");
 
     sheet.appendRow([
       timestamp,
-      data.user1Name || "",
-      (data.user1Code || "") + " " + (data.user1Title || ""),
-      data.user2Name || "",
-      (data.user2Code || "") + " " + (data.user2Title || ""),
-      coupleStr,
+      userName,
+      userCode,
+      userTitle,
       themes,
+      timePref,
       opening,
       main,
       next
@@ -66,3 +65,4 @@ function doPost(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 }
+

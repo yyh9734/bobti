@@ -161,6 +161,84 @@ function matchGamesForCouple(user1Data, user2Data) {
   };
 }
 
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = { calculateIndividualBOBTI, calculateCoupleProfile, matchGamesForCouple };
+// 1인 단독 성향 매칭 계산
+function matchGamesForIndividual(userData) {
+  const user = calculateIndividualBOBTI(userData);
+  const themes = userData.themes || [];
+  const played = userData.played || [];
+
+  const weights = { vc: 0.30, bs: 0.25, dl: 0.25, ag: 0.20 };
+
+  const scoredGames = GAMES_DATA.filter(game => {
+    // 4인 플레이 가능 여부 검사 (Game night 4인 기준 풀 유지)
+    if (game.excludeFor4P) return false;
+    if (game.minP > 4 || game.maxP < 4) return false;
+    return true;
+  }).map(game => {
+    const gVC = game.axes.vc * 2;
+    const gBS = game.axes.bs * 2;
+    const gDL = game.axes.dl * 2;
+    const gAG = game.axes.ag * 2;
+
+    const diffVC = Math.abs(user.scores.vc - gVC);
+    const diffBS = Math.abs(user.scores.bs - gBS);
+    const diffDL = Math.abs(user.scores.dl - gDL);
+    const diffAG = Math.abs(user.scores.ag - gAG);
+
+    const weightedDiff = (diffVC * weights.vc) + (diffBS * weights.bs) + (diffDL * weights.dl) + (diffAG * weights.ag);
+    let matchScore = Math.max(0, 100 - (weightedDiff * 10));
+
+    // 테마 일치 보너스 (+8점)
+    if (game.tags.some(t => themes.includes(t))) {
+      matchScore += 8;
+    }
+
+    // 이미 해본 게임 보정
+    if (played.some(p => game.name.includes(p) || p.includes(game.name))) {
+      matchScore -= 5;
+    }
+
+    // 호스트 평점 보너스
+    if (game.hostRating) {
+      matchScore += (game.hostRating - 7.0) * 2;
+    }
+
+    return {
+      ...game,
+      matchScore: Math.round(matchScore * 10) / 10
+    };
+  });
+
+  // 1. Opening Game
+  const openingCandidates = scoredGames
+    .filter(g => g.weight <= 1.5 && g.timeMinutes <= 30)
+    .sort((a, b) => b.matchScore - a.matchScore)
+    .slice(0, 4);
+
+  // 2. Main Game
+  const mainCandidates = scoredGames
+    .filter(g => g.weight >= 1.5 && g.weight <= 2.6 && g.timeMinutes <= 60)
+    .sort((a, b) => b.matchScore - a.matchScore)
+    .slice(0, 4);
+
+  // 3. Next Step
+  const nextCandidates = scoredGames
+    .filter(g => g.weight >= 2.4 && g.weight <= 3.9)
+    .sort((a, b) => b.matchScore - a.matchScore)
+    .slice(0, 4);
+
+  return {
+    user,
+    themes,
+    recommendations: {
+      opening: openingCandidates,
+      main: mainCandidates,
+      next: nextCandidates
+    }
+  };
 }
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { calculateIndividualBOBTI, calculateCoupleProfile, matchGamesForCouple, matchGamesForIndividual };
+}
+

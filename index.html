@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>BOBTI (보비티아이) - 우리 부부 보드게임 성향 검사</title>
+  <title>BOBTI (보비티아이) - 나만의 보드게임 성향 검사</title>
   <style>
     :root {
       --primary: #4f46e5;
@@ -104,7 +104,7 @@
       border: 1px solid var(--border);
       border-radius: 12px;
       color: white;
-      font-size: 15px;
+      font-size: 16px;
       margin-bottom: 16px;
       outline: none;
     }
@@ -118,7 +118,7 @@
       margin-bottom: 20px;
     }
     .chip {
-      padding: 12px;
+      padding: 14px 12px;
       border-radius: 12px;
       background: #0f172a;
       border: 1px solid var(--border);
@@ -135,11 +135,8 @@
       color: #c7d2fe;
       font-weight: 600;
     }
-    .question-box {
-      margin-bottom: 24px;
-    }
     .question-title {
-      font-size: 16px;
+      font-size: 17px;
       font-weight: 700;
       margin-bottom: 6px;
       color: #e2e8f0;
@@ -148,6 +145,7 @@
       font-size: 13px;
       color: var(--text-muted);
       margin-bottom: 12px;
+      line-height: 1.4;
     }
     .option-btn {
       width: 100%;
@@ -181,18 +179,6 @@
       height: 100%;
       background: linear-gradient(90deg, var(--primary), var(--secondary));
       transition: width 0.3s ease;
-    }
-    .status-badge {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 8px 12px;
-      background: rgba(16, 185, 129, 0.15);
-      color: #34d399;
-      border-radius: 10px;
-      font-size: 13px;
-      font-weight: 600;
-      margin-bottom: 16px;
     }
     .game-card {
       background: #0f172a;
@@ -229,49 +215,29 @@
       font-size: 11px;
       font-weight: 700;
     }
-    .tab-container {
-      display: flex;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 16px;
-    }
-    .tab-btn {
-      flex: 1;
-      padding: 10px;
-      background: none;
-      border: none;
-      color: var(--text-muted);
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      text-align: center;
-    }
-    .tab-btn.active {
-      color: var(--primary-light);
-      border-bottom: 2px solid var(--primary-light);
-    }
   </style>
 </head>
 <body>
-  <div id="app-container">
-    <!-- 화면이 자바스크립트로 렌더링됩니다 -->
-  </div>
+  <div id="app-container"></div>
 
   <script src="data.js"></script>
   <script src="algorithm.js"></script>
   <script>
-    // 상태 관리 (localStorage 연동)
+    // 1인 전용 상태 관리
     const STATE = {
-      step: 'home', // 'home', 'survey', 'waiting', 'results'
-      currentUser: 1, // 1: 배우자 A, 2: 배우자 B
+      step: 'home', // 'home', 'name', 'theme', 'scenario', 'time', 'results'
       sheetsWebhookUrl: localStorage.getItem('bobti_sheets_url') || '',
-      user1: { name: '', played: [], themes: [], answers: {}, timePref: '30~60분' },
-      user2: { name: '', played: [], themes: [], answers: {}, timePref: '30~60분' },
-      currentQIndex: 0
+      user: {
+        name: '',
+        themes: [],
+        answers: {},
+        timePref: '30~60분'
+      },
+      currentScenarioIndex: 0
     };
 
-    // 로컬 스토리지에서 이전 응답 복원
     function loadSavedState() {
-      const saved = localStorage.getItem('bobti_state');
+      const saved = localStorage.getItem('bobti_single_state');
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
@@ -282,22 +248,20 @@
     }
 
     function saveState() {
-      localStorage.setItem('bobti_state', JSON.stringify(STATE));
+      localStorage.setItem('bobti_single_state', JSON.stringify(STATE));
       if (STATE.sheetsWebhookUrl) {
         localStorage.setItem('bobti_sheets_url', STATE.sheetsWebhookUrl);
       }
     }
 
-    function resetAllState() {
-      if (confirm('새로운 커플 검사를 위해 모든 입력 데이터를 초기화하시겠습니까?')) {
-        const webhookBackup = STATE.sheetsWebhookUrl;
+    function resetTest() {
+      if (confirm('새로운 검사를 시작하시겠습니까? 기존 입력 내용이 초기화됩니다.')) {
+        const urlBackup = STATE.sheetsWebhookUrl;
         STATE.step = 'home';
-        STATE.currentUser = 1;
-        STATE.currentQIndex = 0;
-        STATE.user1 = { name: '', played: [], themes: [], answers: {}, timePref: '30~60분' };
-        STATE.user2 = { name: '', played: [], themes: [], answers: {}, timePref: '30~60분' };
-        STATE.sheetsWebhookUrl = webhookBackup;
-        localStorage.removeItem('bobti_state');
+        STATE.user = { name: '', themes: [], answers: {}, timePref: '30~60분' };
+        STATE.currentScenarioIndex = 0;
+        STATE.sheetsWebhookUrl = urlBackup;
+        localStorage.removeItem('bobti_single_state');
         saveState();
         render();
       }
@@ -307,59 +271,66 @@
       const root = document.getElementById('app-container');
       root.innerHTML = '';
 
-      if (STATE.step === 'home') {
-        renderHome(root);
-      } else if (STATE.step === 'survey') {
-        renderSurvey(root);
-      } else if (STATE.step === 'waiting') {
-        renderWaiting(root);
-      } else if (STATE.step === 'results') {
-        renderResults(root);
+      switch (STATE.step) {
+        case 'home':
+          renderHome(root);
+          break;
+        case 'name':
+          renderNamePage(root);
+          break;
+        case 'theme':
+          renderThemePage(root);
+          break;
+        case 'scenario':
+          renderScenarioPage(root);
+          break;
+        case 'time':
+          renderTimePage(root);
+          break;
+        case 'results':
+          renderResults(root);
+          break;
+        default:
+          renderHome(root);
       }
     }
 
+    // 1. 홈 화면
     function renderHome(root) {
       root.innerHTML = `
         <div class="card">
-          <div style="text-align: center; font-size: 40px; margin-bottom: 10px;">🎲✨</div>
+          <div style="text-align: center; font-size: 42px; margin-bottom: 12px;">🎲✨</div>
           <h1>BOBTI 보비티아이</h1>
-          <p class="subtitle">우리 부부만을 위한 맞춤형 보드게임 성향 분석 & Game Night 추천</p>
+          <p class="subtitle">나만의 보드게임 성향 분석 & 오늘 밤 맞춤 게임 코스 추천</p>
           
           <div style="background: rgba(99, 102, 241, 0.1); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 20px;">
-            <div style="font-weight: 700; color: #a5b4fc; margin-bottom: 6px; font-size: 15px;">💡 진행 방법</div>
+            <div style="font-weight: 700; color: #a5b4fc; margin-bottom: 6px; font-size: 15px;">💡 진행 안내</div>
             <div style="font-size: 13px; color: #cbd5e1; line-height: 1.5;">
-              1. 부부 두 분이 각자 <strong>3분간 8가지 질문</strong>에 응답합니다.<br>
-              2. 두 분의 성향(경쟁, 계획, 몰입도, 공격성)을 분석합니다.<br>
-              3. 호스트가 보유한 <strong>41개 명작 보드게임</strong> 중 오늘 밤 딱 맞는 <strong>Opening → 본 게임 → 심화 게임</strong> 코스를 완성합니다!
+              • 약 <strong>2~3분</strong>이면 검사가 완료됩니다.<br>
+              • 나의 플레이 성향(경쟁, 전략, 몰입도, 공격성)을 알아봅니다.<br>
+              • 호스트가 소장한 <strong>41개 명작 보드게임</strong> 중 내 취향에 딱 맞는 <strong>Opening → Main → Next Step</strong> 코스를 찾아드립니다!
             </div>
           </div>
 
-          <button class="btn btn-primary" onclick="startSurvey(1)">
-            👤 1번째 분 (${STATE.user1.name || '시작하기'})
+          <button class="btn btn-primary" onclick="STATE.step='name'; saveState(); render();">
+            👉 검사 시작하기
           </button>
-          ${STATE.user1.name ? `
-            <button class="btn btn-secondary" onclick="startSurvey(2)" style="margin-top: 10px;">
-              👤 2번째 분 (${STATE.user2.name || '배우자'}) 검사 시작하기
+
+          ${STATE.user.name ? `
+            <button class="btn btn-secondary" onclick="STATE.step='results'; saveState(); render();" style="margin-top: 10px;">
+              📄 이전 결과 다시보기 (${STATE.user.name} 님)
             </button>
-          ` : ''}
-          ${STATE.user1.name && STATE.user2.name ? `
-            <button class="btn btn-primary" onclick="showResults()" style="background: linear-gradient(135deg, #10b981, #059669); margin-top: 12px;">
-              🎉 두 분의 결과 확인하기
+            <button class="btn btn-secondary" onclick="resetTest()" style="margin-top: 10px; font-size: 13px; padding: 10px; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);">
+              🔄 새로 시작하기 (초기화)
             </button>
           ` : ''}
 
-          ${(STATE.user1.name || STATE.user2.name) ? `
-            <button class="btn btn-secondary" onclick="resetAllState()" style="margin-top: 10px; font-size: 13px; padding: 10px; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);">
-              🔄 새로 오신 손님용 초기화
-            </button>
-          ` : ''}
-
-          <!-- 호스트 전용 Google Sheets 연동 설정 (접이식) -->
+          <!-- Google Sheets 연동 설정 (접이식) -->
           <details style="margin-top: 24px; font-size: 13px; color: var(--text-muted); border-top: 1px dashed var(--border); padding-top: 16px;">
-            <summary style="cursor: pointer; font-weight: 600; color: #cbd5e1;">⚙️ Google Sheets 실시간 자동 저장 설정 (호스트 전용)</summary>
+            <summary style="cursor: pointer; font-weight: 600; color: #cbd5e1;">⚙️ Google Sheets 자동 저장 설정 (호스트 전용)</summary>
             <div style="margin-top: 10px;">
               <p style="font-size: 12px; line-height: 1.4; margin-bottom: 8px;">
-                Google 스프레드시트 Apps Script Web App URL을 등록하면, 결과 도출 시 시트에 행이 자동 기록됩니다.
+                Google Apps Script Web App URL을 입력하면 검사 완료 시 시트에 결과가 실시간 자동 기록됩니다.
               </p>
               <input type="text" id="sheets-url-input" class="input-field" placeholder="https://script.google.com/macros/s/.../exec" value="${STATE.sheetsWebhookUrl}" style="font-size: 12px; padding: 10px;">
               <button class="btn btn-secondary" style="font-size: 13px; padding: 8px;" onclick="saveSheetsUrl()">URL 저장하기</button>
@@ -377,23 +348,283 @@
       render();
     }
 
-    function sendToGoogleSheets(matchResult) {
+    // 2. 이름 입력 전용 페이지
+    function renderNamePage(root) {
+      root.innerHTML = `
+        <div class="card">
+          <span class="badge">Step 1 / 4</span>
+          <div class="question-title" style="font-size: 19px; margin-top: 6px;">참가자 성함을 알려주세요</div>
+          <div class="question-desc">결과 카드에 표시될 이름이나 별명을 적어주세요.</div>
+
+          <input type="text" class="input-field" placeholder="예: 영희, 민수, 주인장" value="${STATE.user.name}" id="name-input" autofocus>
+
+          <button class="btn btn-primary" onclick="submitName()">다음으로</button>
+          <button class="btn btn-secondary" onclick="STATE.step='home'; render();" style="margin-top: 10px;">처음으로</button>
+        </div>
+      `;
+    }
+
+    function submitName() {
+      const input = document.getElementById('name-input');
+      const name = input ? input.value.trim() : '';
+      if (!name) {
+        alert('성함이나 닉네임을 입력해주세요!');
+        return;
+      }
+      STATE.user.name = name;
+      STATE.step = 'theme';
+      saveState();
+      render();
+    }
+
+    // 3. 선호 테마 선택 전용 페이지
+    function renderThemePage(root) {
+      const themes = [
+        { id: '히어로', name: '🦸 히어로 / 마블' },
+        { id: 'SF', name: '🚀 우주 / SF / 탐험' },
+        { id: '판타지', name: '🐉 판타지 / 모험' },
+        { id: '경제', name: '🏭 경제 / 경영 / 건설' },
+        { id: '아시아', name: '🎌 동양 / 일본 / 역사' },
+        { id: '서부', name: '🤠 서부 / 범죄 / 카지노' },
+        { id: '음식', name: '🍜 음식 / 요리 / 동물' },
+        { id: '일상', name: '🎲 가벼운 파티 / 유머' }
+      ];
+
+      root.innerHTML = `
+        <div class="card">
+          <span class="badge">Step 2 / 4</span>
+          <div class="question-title" style="font-size: 19px; margin-top: 6px;">끌리는 테마나 세계관을 골라주세요</div>
+          <div class="question-desc">선호하는 분위기를 여러 개 선택하실 수 있습니다. (없으시면 바로 다음 클릭)</div>
+
+          <div class="chip-grid">
+            ${themes.map(t => `
+              <div class="chip ${STATE.user.themes.includes(t.id) ? 'selected' : ''}" onclick="toggleTheme('${t.id}')">
+                ${t.name}
+              </div>
+            `).join('')}
+          </div>
+
+          <div style="display: flex; gap: 10px;">
+            <button class="btn btn-secondary" style="flex: 1;" onclick="STATE.step='name'; render();">이전</button>
+            <button class="btn btn-primary" style="flex: 2;" onclick="STATE.step='scenario'; STATE.currentScenarioIndex=0; saveState(); render();">질문 시작하기</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function toggleTheme(themeId) {
+      if (STATE.user.themes.includes(themeId)) {
+        STATE.user.themes = STATE.user.themes.filter(t => t !== themeId);
+      } else {
+        STATE.user.themes.push(themeId);
+      }
+      saveState();
+      render();
+    }
+
+    // 4. 시나리오 문항 페이지 (8문항 슬라이드)
+    function renderScenarioPage(root) {
+      const qIndex = STATE.currentScenarioIndex;
+      const q = SCENARIO_QUESTIONS[qIndex];
+      const progress = ((qIndex + 1) / SCENARIO_QUESTIONS.length) * 100;
+      const selectedScore = STATE.user.answers[q.id];
+
+      root.innerHTML = `
+        <div class="card">
+          <div class="progress-bar-container">
+            <div class="progress-fill" style="width: ${progress}%;"></div>
+          </div>
+          <span class="badge">Step 3 / 4 • ${q.situation} (${qIndex + 1}/${SCENARIO_QUESTIONS.length})</span>
+          <div class="question-title" style="font-size: 18px; margin-top: 6px;">${q.question}</div>
+          <div class="question-desc">편하게 떠오르는 나의 성향에 가장 가까운 선택지를 골라주세요.</div>
+
+          <div style="margin-top: 16px;">
+            ${q.options.map((opt) => `
+              <button class="option-btn ${selectedScore === opt.score ? 'selected' : ''}" onclick="chooseScenarioAnswer('${q.id}', ${opt.score})">
+                ${opt.text}
+              </button>
+            `).join('')}
+          </div>
+
+          <div style="display: flex; gap: 10px; margin-top: 14px;">
+            <button class="btn btn-secondary" style="flex: 1;" onclick="prevScenario()">이전</button>
+            <button class="btn btn-primary" style="flex: 2;" onclick="nextScenario()">다음</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function chooseScenarioAnswer(qId, score) {
+      STATE.user.answers[qId] = score;
+      saveState();
+      render();
+    }
+
+    function prevScenario() {
+      if (STATE.currentScenarioIndex > 0) {
+        STATE.currentScenarioIndex--;
+      } else {
+        STATE.step = 'theme';
+      }
+      saveState();
+      render();
+    }
+
+    function nextScenario() {
+      const q = SCENARIO_QUESTIONS[STATE.currentScenarioIndex];
+      if (typeof STATE.user.answers[q.id] === 'undefined') {
+        alert('선택지를 하나 골라주세요!');
+        return;
+      }
+      if (STATE.currentScenarioIndex < SCENARIO_QUESTIONS.length - 1) {
+        STATE.currentScenarioIndex++;
+      } else {
+        STATE.step = 'time';
+      }
+      saveState();
+      render();
+    }
+
+    // 5. 플레이 타임 선택 페이지
+    function renderTimePage(root) {
+      const timeOptions = [
+        '10~20분 (초간단 파티)',
+        '20~40분 (적당한 집중)',
+        '40~60분 (알찬 전략)',
+        '60분 이상도 집중 가능!'
+      ];
+
+      root.innerHTML = `
+        <div class="card">
+          <span class="badge">Step 4 / 4 (마지막!)</span>
+          <div class="question-title" style="font-size: 19px; margin-top: 6px;">선호하는 플레이 타임</div>
+          <div class="question-desc">한 게임당 어느 정도 호흡이 가장 편안하신가요?</div>
+
+          <div style="margin-bottom: 20px;">
+            ${timeOptions.map(time => `
+              <button class="option-btn ${STATE.user.timePref === time ? 'selected' : ''}" onclick="selectTime('${time}')">
+                ⏱️ ${time}
+              </button>
+            `).join('')}
+          </div>
+
+          <div style="display: flex; gap: 10px;">
+            <button class="btn btn-secondary" style="flex: 1;" onclick="STATE.step='scenario'; STATE.currentScenarioIndex = SCENARIO_QUESTIONS.length - 1; render();">이전</button>
+            <button class="btn btn-primary" style="flex: 2;" onclick="STATE.step='results'; saveState(); render();">결과 확인하기 🎉</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function selectTime(time) {
+      STATE.user.timePref = time;
+      saveState();
+      render();
+    }
+
+    // 6. 결과 화면 (1인 단독 결과 & 3단계 추천)
+    function renderResults(root) {
+      const matchResult = matchGamesForIndividual(STATE.user);
+      const u = matchResult.user;
+      const rec = matchResult.recommendations;
+
+      // Google Sheets 실시간 자동 전송 시도
+      setTimeout(() => sendSingleResultToSheets(matchResult), 100);
+
+      root.innerHTML = `
+        <div class="card">
+          <h1>✨ ${STATE.user.name} 님의 BOBTI</h1>
+          <p class="subtitle">나의 성향 분석 & Game Night 맞춤 추천 코스</p>
+
+          <div id="sheets-status" style="font-size: 12px; color: #34d399; text-align: center; margin-bottom: 12px;"></div>
+
+          <!-- 내 BOBTI 유형 카드 -->
+          <div style="background: rgba(99, 102, 241, 0.15); border: 1px solid var(--primary-light); border-radius: 16px; padding: 20px; margin-bottom: 20px; text-align: center;">
+            <div style="font-size: 40px; margin-bottom: 6px;">${u.typeInfo.icon}</div>
+            <div style="font-size: 22px; font-weight: 800; color: #ffffff; margin-bottom: 4px;">
+              ${u.code} : ${u.typeInfo.title}
+            </div>
+            <div style="font-size: 14px; color: #cbd5e1; line-height: 1.5; margin-top: 10px; text-align: left; background: #0f172a; padding: 12px; border-radius: 10px;">
+              ${u.typeInfo.desc}
+            </div>
+            <div style="display: flex; justify-content: space-around; margin-top: 14px; font-size: 12px; color: #94a3b8;">
+              <span>${u.scores.vc < 0 ? '⚔️ 경쟁형' : '🤝 협력형'}</span>
+              <span>${u.scores.bs < 0 ? '🧠 두뇌계획' : '⚡ 직감감각'}</span>
+              <span>${u.scores.dl < 0 ? '🌌 깊은몰입' : '🎈 가벼움'}</span>
+              <span>${u.scores.ag < 0 ? '🎯 견제공격' : '🛡️ 평화수비'}</span>
+            </div>
+          </div>
+
+          <!-- 카카오톡 공유 버튼 -->
+          <button class="btn btn-primary" onclick='copySingleSummary(${JSON.stringify(matchResult).replace(/'/g, "\\'")})' style="margin-bottom: 24px; background: #fee500; color: #191600;">
+            💬 호스트 전달용 카톡 요약 복사하기
+          </button>
+
+          <!-- 3단계 추천 게임 -->
+          <h2 style="font-size: 18px; font-weight: 800; margin-bottom: 12px; color: #e2e8f0;">
+            🎯 내 취향 맞춤 3단계 코스 추천
+          </h2>
+
+          <!-- 1단계: Opening -->
+          <div style="margin-bottom: 20px;">
+            <div style="font-size: 14px; font-weight: 700; color: #34d399; margin-bottom: 8px;">
+              🟢 1. Opening Game (가벼운 아이스브레이킹)
+            </div>
+            ${rec.opening.map(g => renderGameCard(g)).join('')}
+          </div>
+
+          <!-- 2단계: Main -->
+          <div style="margin-bottom: 20px;">
+            <div style="font-size: 14px; font-weight: 700; color: #60a5fa; margin-bottom: 8px;">
+              🔵 2. Main Game (오늘 밤의 메인 요리)
+            </div>
+            ${rec.main.map(g => renderGameCard(g)).join('')}
+          </div>
+
+          <!-- 3단계: Next Step -->
+          <div style="margin-bottom: 20px;">
+            <div style="font-size: 14px; font-weight: 700; color: #f472b6; margin-bottom: 8px;">
+              🟣 3. Next Step (다음 모임 또는 심화 도전)
+            </div>
+            ${rec.next.map(g => renderGameCard(g)).join('')}
+          </div>
+
+          <button class="btn btn-secondary" onclick="resetTest()" style="margin-top: 16px; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);">
+            🔄 새로운 사람 검사하기 (초기화)
+          </button>
+          <button class="btn btn-secondary" onclick="STATE.step='home'; render();" style="margin-top: 8px;">
+            🏠 홈으로 돌아가기
+          </button>
+        </div>
+      `;
+    }
+
+    function renderGameCard(game) {
+      return `
+        <div class="game-card">
+          <div class="game-title">
+            <span>${game.name}</span>
+            <span class="match-tag">${game.matchScore}점 일치</span>
+          </div>
+          <div class="game-meta">
+            난이도 ${game.weight} / ${game.time} / BGG ${game.rating || '-'} / 주인장 평점 ${game.hostRating || '-'}
+          </div>
+          <div class="game-summary">${game.summary}</div>
+        </div>
+      `;
+    }
+
+    function sendSingleResultToSheets(matchResult) {
       if (!STATE.sheetsWebhookUrl) return;
-      const u1 = matchResult.user1;
-      const u2 = matchResult.user2;
-      const couple = matchResult.couple;
+      const u = matchResult.user;
       const rec = matchResult.recommendations;
 
       const payload = {
-        user1Name: STATE.user1.name,
-        user1Code: u1.code,
-        user1Title: u1.typeInfo.title,
-        user2Name: STATE.user2.name,
-        user2Code: u2.code,
-        user2Title: u2.typeInfo.title,
-        coupleCode: couple.coupleCode,
-        coupleTitle: couple.typeInfo.title,
-        themes: matchResult.combinedThemes,
+        userName: STATE.user.name,
+        userCode: u.code,
+        userTitle: u.typeInfo.title,
+        themes: STATE.user.themes,
+        timePref: STATE.user.timePref,
         opening: rec.opening.map(g => g.name),
         main: rec.main.map(g => g.name),
         next: rec.next.map(g => g.name)
@@ -412,135 +643,27 @@
       });
     }
 
-    function copyResultSummary(matchResult) {
-      const u1 = matchResult.user1;
-      const u2 = matchResult.user2;
-      const couple = matchResult.couple;
+    function copySingleSummary(matchResult) {
+      const u = matchResult.user;
       const rec = matchResult.recommendations;
 
-      const text = `[🎲 BOBTI 결과 - ${STATE.user1.name} & ${STATE.user2.name} 커플]\n` +
-        `• ${STATE.user1.name}: ${u1.code} (${u1.typeInfo.title})\n` +
-        `• ${STATE.user2.name}: ${u2.code} (${u2.typeInfo.title})\n` +
-        `• 부부 종합: ${couple.coupleCode} (${couple.typeInfo.title})\n\n` +
+      const text = `[🎲 BOBTI 보드게임 성향 결과]\n` +
+        `• 참가자: ${STATE.user.name}\n` +
+        `• 성향: ${u.typeInfo.icon} ${u.code} (${u.typeInfo.title})\n` +
+        `• 선호 테마: ${STATE.user.themes.join(', ') || '자유'}\n` +
+        `• 선호 시간: ${STATE.user.timePref}\n\n` +
         `🟢 1. Opening 추천:\n${rec.opening.map(g => '  - ' + g.name + ' (' + g.matchScore + '점)').join('\n')}\n\n` +
         `🔵 2. Main Game 추천:\n${rec.main.map(g => '  - ' + g.name + ' (' + g.matchScore + '점)').join('\n')}\n\n` +
         `🟣 3. Next Step 추천:\n${rec.next.map(g => '  - ' + g.name + ' (' + g.matchScore + '점)').join('\n')}`;
 
       navigator.clipboard.writeText(text).then(() => {
-        alert('카톡 공유용 요약 결과가 클립보드에 복사되었습니다! 호스트에게 붙여넣기 하세요.');
+        alert('카톡 공유용 요약 결과가 복사되었습니다! 호스트에게 붙여넣기 하세요.');
       }).catch(() => {
         prompt('아래 내용을 복사하세요:', text);
       });
     }
 
-    function renderResults(root) {
-      const matchResult = matchGamesForCouple(STATE.user1, STATE.user2);
-      const u1 = matchResult.user1;
-      const u2 = matchResult.user2;
-      const couple = matchResult.couple;
-      const rec = matchResult.recommendations;
-
-      // Google Sheets 전송 시도
-      setTimeout(() => sendToGoogleSheets(matchResult), 100);
-
-      root.innerHTML = `
-        <div class="card">
-          <h1>✨ BOBTI 분석 결과</h1>
-          <p class="subtitle">${STATE.user1.name} & ${STATE.user2.name} 커플 맞춤형 Game Night 코스</p>
-
-          <div id="sheets-status" style="font-size: 12px; color: #34d399; text-align: center; margin-bottom: 12px;"></div>
-
-          <!-- 개인별 BOBTI -->
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
-            <div style="background: #0f172a; padding: 12px; border-radius: 12px; border: 1px solid var(--border);">
-              <div style="font-size: 12px; color: var(--text-muted);">${STATE.user1.name}</div>
-              <div style="font-size: 16px; font-weight: 800; color: #a5b4fc; margin: 4px 0;">${u1.typeInfo.icon} ${u1.code}</div>
-              <div style="font-size: 12px; color: #cbd5e1; font-weight: 600;">${u1.typeInfo.title}</div>
-            </div>
-            <div style="background: #0f172a; padding: 12px; border-radius: 12px; border: 1px solid var(--border);">
-              <div style="font-size: 12px; color: var(--text-muted);">${STATE.user2.name}</div>
-              <div style="font-size: 16px; font-weight: 800; color: #f472b6; margin: 4px 0;">${u2.typeInfo.icon} ${u2.code}</div>
-              <div style="font-size: 12px; color: #cbd5e1; font-weight: 600;">${u2.typeInfo.title}</div>
-            </div>
-          </div>
-
-          <!-- 커플 종합 프로필 -->
-          <div style="background: rgba(99, 102, 241, 0.15); border: 1px solid var(--primary-light); border-radius: 14px; padding: 16px; margin-bottom: 24px;">
-            <div style="font-size: 12px; color: #c7d2fe; font-weight: 700;">💑 부부 종합 플레이 성향</div>
-            <div style="font-size: 20px; font-weight: 800; color: #ffffff; margin: 6px 0;">
-              ${couple.typeInfo.icon} ${couple.coupleCode} : ${couple.typeInfo.title}
-            </div>
-            <div style="font-size: 13px; color: #cbd5e1; line-height: 1.45;">
-              ${couple.typeInfo.desc}
-            </div>
-            ${couple.conflicts.length > 0 ? `
-              <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); font-size: 12px; color: #fbbf24;">
-                ${couple.conflicts.map(c => `⚠️ ${c.text}`).join('<br>')}
-              </div>
-            ` : ''}
-          </div>
-
-          <!-- 호스트 카톡 전송 및 요약 복사 버튼 -->
-          <button class="btn btn-primary" onclick='copyResultSummary(${JSON.stringify(matchResult).replace(/'/g, "\\'")})' style="margin-bottom: 20px; background: #fee500; color: #191600;">
-            💬 카카오톡 전달용 요약 복사하기
-          </button>
-
-          <!-- 3단계 추천 코스 -->
-          <h2 style="font-size: 18px; font-weight: 800; margin-bottom: 12px; color: #e2e8f0;">
-            🎯 Game Night 3단계 코스 추천 (각 단계 택 1)
-          </h2>
-
-          <!-- 1단계: Opening Game -->
-          <div style="margin-bottom: 20px;">
-            <div style="font-size: 14px; font-weight: 700; color: #34d399; margin-bottom: 8px;">
-              🟢 1. Opening Game (가벼운 아이스브레이킹)
-            </div>
-            ${rec.opening.map(g => renderGameCard(g)).join('')}
-          </div>
-
-          <!-- 2단계: Main Game -->
-          <div style="margin-bottom: 20px;">
-            <div style="font-size: 14px; font-weight: 700; color: #60a5fa; margin-bottom: 8px;">
-              🔵 2. Main Game (오늘 밤의 메인 요리)
-            </div>
-            ${rec.main.map(g => renderGameCard(g)).join('')}
-          </div>
-
-          <!-- 3단계: Next Step -->
-          <div style="margin-bottom: 20px;">
-            <div style="font-size: 14px; font-weight: 700; color: #f472b6; margin-bottom: 8px;">
-              🟣 3. Next Step (다음 모임 또는 심화 도전)
-            </div>
-            ${rec.next.map(g => renderGameCard(g)).join('')}
-          </div>
-
-          <button class="btn btn-secondary" onclick="resetAllState()" style="margin-top: 16px; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);">
-            🔄 새로운 커플 검사하기 (초기화)
-          </button>
-          <button class="btn btn-secondary" onclick="STATE.step='home'; render();" style="margin-top: 8px;">
-            🏠 홈으로 돌아가기
-          </button>
-        </div>
-      `;
-    }
-
-
-    function renderGameCard(game) {
-      return `
-        <div class="game-card">
-          <div class="game-title">
-            <span>${game.name}</span>
-            <span class="match-tag">${game.matchScore}점 일치</span>
-          </div>
-          <div class="game-meta">
-            난이도 ${game.weight} / ${game.time} / 평점 ${game.rating || '-'} / 주인장 평점 ${game.hostRating || '-'}
-          </div>
-          <div class="game-summary">${game.summary}</div>
-        </div>
-      `;
-    }
-
-    // 초기화 실행
+    // 초기 로딩
     loadSavedState();
     render();
   </script>
